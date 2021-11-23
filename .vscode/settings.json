@@ -1,0 +1,11 @@
+{
+    "files.associations": {
+        "server.h": "c",
+        "Dictionary.C": "cpp",
+        "sstream": "c",
+        "ipfinder.h": "c",
+        "*.tcc": "c",
+        "string": "c",
+        "string_view": "c"
+    }
+}
