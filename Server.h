@@ -11,15 +11,6 @@
 #include <string.h>
 #include <sys/types.h>
 
-// Struct para controlar el modo del servidor y la cantidad de hilos o procesos si asi lo requiere el modo
-typedef struct ServerType
-{
-    int type;
-    int threads;
-    int processes;
-    
-}ServerType;
-
 // Struct para manejar el servidor, la funcion de lauch, el socket, y el puerto desde la funcion de main
 typedef struct Server
 {

@@ -20,12 +20,11 @@ int lengthList() {
 
 //---------------------------------------------------------------------------------------------------------------------------------------
 // Funcion que inserta un elemento en la primera posicion de la lista
-void insertFirst(int key, pthread_t thread, pid_t pid) {
+void insertFirst(int key, pthread_t thread) {
 
     struct node *link = (struct node*) malloc(sizeof(struct node));    // crea el link
     link->key = key;
     link->thread = thread;
-    link->pid = pid;
 	
     if(isEmpty()) {
         last = link; // conviértelo en el último link
@@ -290,66 +289,36 @@ void responseGet(int new_socket, char *fileName, char *path){
     free(filePathConcat);
 }
 
-//---------------------------------------------------------------------------------------------------------------------------------------
-// Funcion que hace el formato del response de un request POST para enviarlo por el socket
-void responsePost(){
 
+void addClientFiles(Request *request){
+    OpenedFile file;
+    char clen[40];
+    char ctype[40];
+    char cdisposition[80];
+
+    if(access(INDEXFILEPATH, F_OK ) == 0){ // Si el achivo existe en la ruta de archivos
+        OpenedFile file;
+        long fsize;
+        FILE *fp = fopen(INDEXFILEPATH, "w"); // Abre archivo
+        
+        fputs("This is Guru99 Tutorial on fputs,", fp);
+        fputs("We don't need to use for loop\n", fp);
+        fputs("Easier than fputc function\n", fp);
+        fclose(fp);
+    }
 }
 
-//---------------------------------------------------------------------------------------------------------------------------------------
-// Funcion que realiza la conexion mediante FIFO
-void FIFO(int socket)
-{
-    char buffer[30000];
-
-    read(socket, buffer, 30000); //lee el descriptor del socket
-
-    HTTPRequest request = HTTPRequest_constructor(buffer); //Construye la estructura del request GET
-    
-    if (request.Method == GET || request.Method == POST){
-
-        if (request.Method == GET){
-            char *copyRequestURI = malloc(sizeof(char) * (strlen(request.URI) + 1));
-            strcpy(copyRequestURI, request.URI);
-
-            char *parameter = malloc(sizeof(char) * (strlen(request.URI) + 1));
-    
-            strncpy(parameter, request.URI, 7);
-
-            if(strcmp(parameter, PARAMETERKEY) == 0){
-                char *fileName = malloc(sizeof(char) * (strlen(request.URI) + 1));
-                strncpy(fileName, request.URI+7, strlen(request.URI));
-
-                responseGet(socket,fileName,FOLDERPATH);   
-                free(fileName);                     
-            }
-            free(copyRequestURI);
-            free(parameter);
-
-        }else if (request.Method == POST){
-            responsePost();                 //Codigo para POST
-        }
+void freeRequest(Request *request){
+    if (request->Method == GET){
+        free(request->FileName);
+    } else if (request->Method == ONLINE){
+        free(request->IP);
+        free(request->Port);
+        free(request->Files);
+    } else if (request->Method == OFFLINE){
+        free(request->IP);
+        free(request->Port);
     }
-    close(socket);
-    strcpy(buffer,"");
-}
-
-
-
-//---------------------------------------------------------------------------------------------------------------------------------------
-// Funcion que realiza la conexion al servidor FORKED
-void forked(int socket,int pid) 
-{
-    FIFO(socket); //se llama a la funcion FIFO porque realiza una unica conexion
-    int lengthOfList = lengthList();
-    if (lengthOfList > 0)
-    {
-        for(int i = 0; i < lengthOfList; i++){
-            node *threadToDelete = deleteFirst();
-            free(threadToDelete);
-        }
-    }
-    _exit(3);
 }
 
 //---------------------------------------------------------------------------------------------------------------------------------------
@@ -362,32 +331,39 @@ void *threaded(void *args)
     
     read(socket, buffer, 30000);
 
-    HTTPRequest request = HTTPRequest_constructor(buffer);
+    printf("\t\t\t%s\n", inet_ntoa(server.address.sin_addr));
+
+    char requestString[300] = "ONLINE 192.168.100.1 8080\nhola.png datos masdatos hola\nhola.png datos masdatos adios";
+
+    // HTTPRequest request = HTTPRequest_constructor(buffer);
+    Request request = Request_constructor(requestString);
         
-    if (request.Method == GET || request.Method == POST){
+    if (request.Method == ONLINE){
 
-        if (request.Method == GET){
-            char *copyRequestURI = malloc(sizeof(char) * (strlen(request.URI) + 1));
-            strcpy(copyRequestURI, request.URI);
+        //addClientFiles(request);
 
-            char *parameter = malloc(sizeof(char) * (strlen(request.URI) + 1));
-    
-            strncpy(parameter, request.URI, 7);
+    } else if (request.Method == GET){
+        // char *copyRequestURI = malloc(sizeof(char) * (strlen(request.URI) + 1));
+        // strcpy(copyRequestURI, request.URI);
 
-            if(strcmp(parameter, PARAMETERKEY) == 0){
-                char *fileName = malloc(sizeof(char) * (strlen(request.URI) + 1));
-                strncpy(fileName, request.URI+7, strlen(request.URI));
+        // char *parameter = malloc(sizeof(char) * (strlen(request.URI) + 1));
 
-                responseGet(socket,fileName,FOLDERPATH);   
-                free(fileName);                     
-            }
-            free(copyRequestURI);
-            free(parameter);
+        // strncpy(parameter, request.URI, 7);
 
-        }else if (request.Method == POST){
-            responsePost();                 //Codigo para POST
-        }
+        // if(strcmp(parameter, PARAMETERKEY) == 0){
+        //     char *fileName = malloc(sizeof(char) * (strlen(request.URI) + 1));
+        //     strncpy(fileName, request.URI+7, strlen(request.URI));
+
+        //     responseGet(socket,fileName,FOLDERPATH);   
+        //     free(fileName);                     
+        // }
+        // free(copyRequestURI);
+        // free(parameter);
+    } else if (request.Method == OFFLINE){
+
     }
+
+    freeRequest(&request);
     close(socket);
     pthread_mutex_lock(&listMutex);
     free(delete(pthread_self()));
@@ -396,40 +372,9 @@ void *threaded(void *args)
 }
 
 //---------------------------------------------------------------------------------------------------------------------------------------
-// Funcion para el manejo del pool de hilos
-void *handle_pool(void *args){
-    while(killFlag)
-    {
-        int *client;//en cada iteracion puede asignarse un cliente
-        pthread_mutex_lock(&pool_mutex); //bloqueo el pool
-        if((client = dequeue()) == NULL){ //si no hay request que desencolar se duerme el hilo
-            pthread_cond_wait(&pool_cond,&pool_mutex);
-            client = dequeue(); //se despierta y desencola cuando llega un request
-        }
-        pthread_mutex_unlock(&pool_mutex);//se desbloquea el pool
-        if(client != NULL){ // se verifica que sea un socket de cliente valido
-            int c = *((int*)client);
-            FIFO(c); //se llama a FIFO
-        }
-        free(client);
-    }
-    pthread_exit(0);
-}
-
-//---------------------------------------------------------------------------------------------------------------------------------------
 // Funcion que realiza el launch del servidor y elegir el tipo de servidor
 void launch(Server *server)
 {
-    if(serverType.type == 3){ //si es un servidor de pool de hilos, se crean los hilos
-        pool = malloc(serverType.threads*sizeof(pthread_t)); // hay que hacerle free
-        for(int i = 0; i < serverType.threads; i++)
-            pthread_create(&pool[i],NULL,handle_pool,NULL);
-    }
-
-    if(serverType.type == 5){ //si es un servidor de pool de procesos, se crean los procesos necesarios
-        preforked(serverType.processes,server);
-    }
-
     while(killFlag){
         printf("===== WAITING FOR CONNECTION =====\n");
 
@@ -437,68 +382,12 @@ void launch(Server *server)
 
         int new_socket = accept(server->socket, (struct sockaddr *)&server->address, (socklen_t *)&address_length);
 
-        if(serverType.type == 1)
-            FIFO(new_socket); //la conexion mas basica FIFO
-
-        else if(serverType.type == 2){
-            pthread_t t; //creacion de un hilo para cada request
-            int *socket = malloc(sizeof(int)); //se asigna un socket
-            *socket = new_socket;
-            pthread_create(&t,NULL,threaded,socket); //se ejecuta el request del hilo al servidor
-            pid_t test;
-            insertFirst(t, t, test); //se guarda el id del hilo en la lista enlazada
-
-        } else if(serverType.type == 3){ //pool de hilos
-            int *socket = malloc(sizeof(int));
-            *socket = new_socket;
-            pthread_mutex_lock(&pool_mutex);
-            enqueue(socket); //se encola el hilo
-            pthread_cond_signal(&pool_cond); // se despierta al primero en la cola
-            pthread_mutex_unlock(&pool_mutex);
-
-        } else if(serverType.type == 4) { //un proceso
-            pid_t childpid;
-            if((childpid = fork()) == 0){
-                forked(new_socket,childpid); 
-            } else {
-                pthread_t t;
-                insertFirst(childpid, t, childpid);
-                close(new_socket);
-                wait(NULL);
-            }
-        }    
+        pthread_t t; //creacion de un hilo para cada request
+        int *socket = malloc(sizeof(int)); //se asigna un socket
+        *socket = new_socket;
+        pthread_create(&t,NULL,threaded,socket); //se ejecuta el request del hilo al servidor
+        insertFirst(t, t); //se guarda el id del hilo en la lista enlazada
     }
-}
-
-//---------------------------------------------------------------------------------------------------------------------------------------
-// Funcion que realiza hace el pool de procesos para el modo de preforked
-void preforked(int nchildren, Server *server)
-{
-    int pid, newsock;
-    for (int x = 0; x < nchildren; x++) { // Deja solo X cantidad de hilos vivir
-        if ((pid = fork()) == 0){
-            while (killFlag){ // Mientras no haya cambie el flag de kill
-                printf("===== WAITING FOR CONNECTION =====\n");
-
-                int address_length = sizeof(server->address);
-                newsock = accept(server->socket, (struct sockaddr *)&server->address, (socklen_t *)&address_length);
-                FIFO(newsock);
-                
-                int lengthOfList = lengthList();
-                if (lengthOfList > 0)
-                {
-                    for(int i = 0; i < lengthOfList; i++){
-                        node *threadToDelete = deleteFirst();
-                        free(threadToDelete);
-                    }
-                }
-            }
-        } else {
-            pthread_t t;
-            insertFirst(pid, t, pid);
-        }
-    }
-    wait(NULL);
 }
 
 //---------------------------------------------------------------------------------------------------------------------------------------
@@ -515,12 +404,6 @@ void *serverFunc(void *args) {
 //---------------------------------------------------------------------------------------------------------------------------------------
 // Funcion que mata todos los hilos en caso de que haya que un mensaje de kill
 void killThreads(){
-    if(serverType.type == 3){
-        for(int i = 0; i < serverType.threads; i++){
-            pthread_cancel(pool[i]);
-        }
-        free(pool);
-    }
     int lengthOfList = lengthList();
     if (lengthOfList > 0)
     {
@@ -537,20 +420,6 @@ void killThreads(){
 }
 
 //---------------------------------------------------------------------------------------------------------------------------------------
-// Funcion que mata todos los procesos en caso de que haya que un mensaje de kill
-void killProceces(){
-    int lengthOfList = lengthList();
-    if (lengthOfList > 0)
-    {
-        for(int i = 0; i < lengthOfList; i++){
-            node *threadToDelete = deleteFirst();
-            kill(threadToDelete->pid, SIGKILL);
-            free(threadToDelete);
-        }
-    }
-}
-
-//---------------------------------------------------------------------------------------------------------------------------------------
 // Funcion main
 int main(int argc, char**argv)
 {
@@ -558,17 +427,6 @@ int main(int argc, char**argv)
     int T = 0;
     int P = 0;
     char consoleInput[30];
-
-    N = atoi(argv[1]); // Lee el modo del servidor
-    if (N == 3){ // Si es pre threaded o pre forked se ocupa un N
-        T = atoi(argv[2]); 
-    } else if (N == 5){
-        P = atoi(argv[2]);
-    }
-
-    serverType.type = N;
-    serverType.processes = P;
-    serverType.threads = T;   
 
     killFlag = 1;
 
@@ -583,11 +441,7 @@ int main(int argc, char**argv)
     }
 
     close(server.socket);
-    if (serverType.type == 2 || serverType.type == 3){
-        killThreads();
-    } else if (serverType.type == 4 || serverType.type == 5){
-        killProceces();
-    }
+    killThreads();
 
     return 0;
 }
