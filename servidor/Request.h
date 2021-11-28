@@ -21,4 +21,6 @@ typedef struct Request {
 // Metodo para deconstruir el request en el struct de HTTPRequest
 Request Request_constructor(char *request_str);
 
+char* copyString(char s[]);
+
 #endif

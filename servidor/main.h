@@ -7,7 +7,6 @@
 #include "Request.h"
 #include "IPFinder.h"
 #include <pthread.h>
-#include "Queue.h"
 #include <signal.h>
 #include <sys/types.h>
 #include <sys/wait.h>
@@ -18,11 +17,11 @@
 
 // Struct para guardar la informacion del archivo que se abrio dado X request
 // Guarda el tamaño del archivo y el contenido del archivo
-typedef struct OpenedFile
+typedef struct FoundedFiles
 {
     long fsize;
-    char * msg;
-} OpenedFile;
+    char *msg;
+} FoundedFiles;
 
 // Struct para las lista enlazada doble para mantener trackeo de los hilos o procesos creados
 typedef struct node {

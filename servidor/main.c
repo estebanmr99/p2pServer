@@ -116,196 +116,132 @@ int writeStrToClient(int sckt, const char *str)
 
 //---------------------------------------------------------------------------------------------------------------------------------------
 // Funcion que abre un archivo dado una direccion en disco y retorna el contenido del archivo con su tamano
-OpenedFile openFile(char *filePath){
-    OpenedFile file;
-    long fsize;
-    FILE *fp = fopen(filePath, "rb"); // Abre archivo
-    if (!fp){
-        perror("The file was not opened");    
-        exit(1);
+// OpenedFile openFile(char *filePath){
+//     OpenedFile file;
+//     long fsize;
+//     FILE *fp = fopen(filePath, "rb"); // Abre archivo
+//     if (!fp){
+//         perror("The file was not opened");    
+//         exit(1);
+//     }
+
+//     if (fseek(fp, 0, SEEK_END) == -1){ // Verifica que el archivo exista
+//         perror("The file was not seeked");
+//         exit(1);
+//     }
+
+//     fsize = ftell(fp);
+//     if (fsize == -1) {
+//         perror("The file size was not retrieved");
+//         exit(1);
+//     }
+//     rewind(fp);
+
+//     char *msg = (char*) malloc(fsize);
+//     if (!msg){
+//         perror("The file buffer was not allocated\n");
+//         exit(1);
+//     }
+
+//     if (fread(msg, fsize, 1, fp) != 1){ // Lee el archivo
+//         perror("The file was not read\n");
+//         exit(1);
+//     }
+//     fclose(fp); // Cierra el archivo
+
+//     printf("The file size is %ld\n", fsize);
+
+//     file.fsize = fsize;
+//     file.msg = msg;
+//     return file;
+// }
+
+//---------------------------------------------------------------------------------------------------------------------------------------
+//
+void responseOK(int new_socket){
+    if (!writeStrToClient(new_socket, "OK") == -1){ // Responde que se proceseso el request
+        close(new_socket);
+        return;
     }
-
-    if (fseek(fp, 0, SEEK_END) == -1){ // Verifica que el archivo exista
-        perror("The file was not seeked");
-        exit(1);
-    }
-
-    fsize = ftell(fp);
-    if (fsize == -1) {
-        perror("The file size was not retrieved");
-        exit(1);
-    }
-    rewind(fp);
-
-    char *msg = (char*) malloc(fsize);
-    if (!msg){
-        perror("The file buffer was not allocated\n");
-        exit(1);
-    }
-
-    if (fread(msg, fsize, 1, fp) != 1){ // Lee el archivo
-        perror("The file was not read\n");
-        exit(1);
-    }
-    fclose(fp); // Cierra el archivo
-
-    printf("The file size is %ld\n", fsize);
-
-    file.fsize = fsize;
-    file.msg = msg;
-    return file;
 }
 
 //---------------------------------------------------------------------------------------------------------------------------------------
-// Funcion que dependiendo del archivo solicitado genera el mimetype del archivo para los headers del response
-char *generateMimeType(const char *extension){
-    char *mimeType;
-
-    if(strcmp(extension, ".mp3") == 0){
-        mimeType = malloc(sizeof(char) * (strlen("audio/mpeg") + 1));
-        strcpy(mimeType, "audio/mpeg");
-    } else if(strcmp(extension, ".csv") == 0){
-        mimeType = malloc(sizeof(char) * (strlen("text/csv") + 1));
-        strcpy(mimeType, "text/csv");
-    } else if(strcmp(extension, ".mp4") == 0){
-        mimeType = malloc(sizeof(char) * (strlen("video/mp4") + 1));
-        strcpy(mimeType, "video/mp4");
-    } else if(strcmp(extension, ".htm") == 0 || strcmp(extension, ".html") == 0){
-        mimeType = malloc(sizeof(char) * (strlen("text/html") + 1));
-        strcpy(mimeType, "text/html");
-    } else if(strcmp(extension, ".jpeg") == 0 || strcmp(extension, ".jpg") == 0){
-        mimeType = malloc(sizeof(char) * (strlen("image/jpeg") + 1));
-        strcpy(mimeType, "image/jpeg");
-    } else if(strcmp(extension, ".png") == 0){
-        mimeType = malloc(sizeof(char) * (strlen("image/png") + 1));
-        strcpy(mimeType, "image/png");
-    } else if(strcmp(extension, ".pdf") == 0){
-        mimeType = malloc(sizeof(char) * (strlen("application/pdf") + 1));
-        strcpy(mimeType, "application/pdf");
-    } else if(strcmp(extension, ".rar") == 0){
-        mimeType = malloc(sizeof(char) * (strlen("application/vnd.rar") + 1));
-        strcpy(mimeType, "application/vnd.rar");
-    } else if(strcmp(extension, ".tar") == 0){
-        mimeType = malloc(sizeof(char) * (strlen("application/x-tar") + 1));
-        strcpy(mimeType, "application/x-tar");
-    } else if(strcmp(extension, ".txt") == 0){
-        mimeType = malloc(sizeof(char) * (strlen("text/plain") + 1));
-        strcpy(mimeType, "text/plain");
-    } else if(strcmp(extension, ".css") == 0){
-        mimeType = malloc(sizeof(char) * (strlen("text/csv") + 1));
-        strcpy(mimeType, "text/css");
-    }
-
-    return mimeType;
-}
-
-//---------------------------------------------------------------------------------------------------------------------------------------
-// Funcion que obtiene la extension de un archivo para determinar el mimetype
-const char *getFilenameExt(const char *filename) {
-    const char *dot = strrchr(filename, '.');
-    if(!dot || dot == filename) return "";
-    return dot;
-}
-
-//---------------------------------------------------------------------------------------------------------------------------------------
-// Funcion que hace el formato del response de un request GET para enviarlo por el socket
-void responseGet(int new_socket, char *fileName, char *path){
-    OpenedFile file;
-    char clen[40];
-    char ctype[40];
-    char cdisposition[80];
-
-    printf("Requested file name: %s\n", fileName);
-    int newSize = strlen(path)  + strlen(fileName) + 1;     // Determina el tamano del puntero de la ruta del archivo
-    char * filePathConcat = (char *)malloc(newSize);    // Aparta el tamano del buffer
-
-    // hace la copia y concatena la ruta de archivos + el nombre del archivo
-    strcpy(filePathConcat, path);
-    strcat(filePathConcat, fileName);
-
-    if(access(filePathConcat, F_OK ) == 0){ // Si el achivo existe en la ruta de archivos
-        file = openFile(filePathConcat);
-
-        if (!writeStrToClient(new_socket, "HTTP/1.1 200 OK\r\n")){ // Escribe el header del HTTP status
+//
+void responseGET(int new_socket, char *files){
+    if(strlen(files) > 1){
+        if (!writeStrToClient(new_socket, files) == -1){ // Responde que se proceseso el request
             close(new_socket);
             return;
         }
-
-        sprintf(clen, "Content-length: %ld\r\n", file.fsize);
-        if (!writeStrToClient(new_socket, clen)){ // Escribe el header de content length
-            close(new_socket);
-            return;
-        }
-
-        sprintf(cdisposition, "Content-Disposition: attachment; filename=\"%s\"\r\n", fileName); // Concatena el nombre del archivo al header
-
-        const char *fileExtension = getFilenameExt(fileName);
-        char *contentType = generateMimeType(fileExtension);
-        sprintf(ctype, "Content-Type: %s\r\n", contentType);
-
-        if (!writeStrToClient(new_socket, cdisposition)){ // Escribe el header de content Disposition
-            close(new_socket);
-            return;
-        }
-
-        if (!writeStrToClient(new_socket, ctype)){  // Escribe el header de content type
-            close(new_socket);
-            return;
-        }
-
-        free(contentType);
     } else {
-        file = openFile(NOTFOUNDPAGEPATH); // En caso de que no exista el archivo se volvera un 404 con un archivo html ya definido
-
-        if (!writeStrToClient(new_socket, "HTTP/1.1 404 Not Found\r\n")){ // Escribe el header del HTTP status
-            close(new_socket);
-            return;
-        }
-
-        sprintf(clen, "Content-length: %ld\r\n", file.fsize);
-        if (!writeStrToClient(new_socket, clen)){ // Escribe el header de content length
-            close(new_socket);
-            return;
-        }
-
-        if (!writeStrToClient(new_socket, "Content-Type: text/html\r\n")){  // Escribe el header de content type
+        if (!writeStrToClient(new_socket, "NOTFOUND") == -1){ // Responde que se proceseso el request
             close(new_socket);
             return;
         }
     }
-
-    if (!writeStrToClient(new_socket, "Connection: close\r\n\r\n") == -1){ // Escribre que la conexion ya se cerro
-        close(new_socket);
-        return;
-    }
-
-    if (!writeDataToClient(new_socket, file.msg, file.fsize)){ // Escribe el contenido del archivo a devolver, ya sea el solicitado el 404
-        close(new_socket);
-        return;
-    }
-
-    printf("The file was sent successfully\n");
-    free(file.msg);
-    free(filePathConcat);
 }
-
 
 void addClientFiles(Request *request){
-    OpenedFile file;
-    char clen[40];
-    char ctype[40];
-    char cdisposition[80];
+    if(access(INDEXFILEPATH, F_OK ) == 0){ // Si el achivo existe en la ruta de archivos
+        FILE *fp = fopen(INDEXFILEPATH, "a"); // Abre archivo
+        char *copyFiles = copyString(request->Files);
+
+        char *tok = strtok(copyFiles, "\n");
+        while(tok != NULL) {
+            fputs(tok, fp);
+            fputs(" ", fp);
+            fputs(request->IP, fp);
+            fputs(" ", fp);
+            fputs(request->Port, fp);
+            fputs("\n", fp);
+            tok = strtok(NULL, "\n");
+        }
+
+        fclose(fp);
+        free(copyFiles);
+    }
+}
+
+char* concat(const char *s1, const char *s2)
+{
+    const size_t len1 = strlen(s1);
+    const size_t len2 = strlen(s2);
+    char *result = malloc(len1 + len2 + 1); // +1 for the null-terminator
+    // in real code you would check for errors in malloc here
+    memcpy(result, s1, len1);
+    memcpy(result + len1, s2, len2 + 1); // +1 to copy the null-terminator
+    return result;
+}
+
+
+char* findFile(Request *request){
+    char *result;
 
     if(access(INDEXFILEPATH, F_OK ) == 0){ // Si el achivo existe en la ruta de archivos
-        OpenedFile file;
-        long fsize;
-        FILE *fp = fopen(INDEXFILEPATH, "w"); // Abre archivo
-        
-        fputs("This is Guru99 Tutorial on fputs,", fp);
-        fputs("We don't need to use for loop\n", fp);
-        fputs("Easier than fputc function\n", fp);
+        FILE *fp = fopen(INDEXFILEPATH, "r"); // Abre archivo
+        char *fileName = copyString(request->FileName);
+
+        int lineLength = 256;
+        char line[lineLength];
+        const char s[2] = " ";
+        char *token;
+
+        result = (char *)calloc(1, sizeof(char));
+
+        while(fgets(line, sizeof(line), fp)) {
+            char *copyLine = copyString(line);
+            token = strtok(line, s);
+            if (strcmp(fileName, token) == 0){
+                result = concat(result, copyLine);
+            }
+            free(copyLine);
+        }
+
         fclose(fp);
+        free(fileName);
     }
+
+    return result;
 }
 
 void freeRequest(Request *request){
@@ -331,34 +267,21 @@ void *threaded(void *args)
     
     read(socket, buffer, 30000);
 
-    printf("\t\t\t%s\n", inet_ntoa(server.address.sin_addr));
+    // char requestString[300] = "ONLINE 192.168.100.1 8080\nNOMBREARCHIVO.png HASH TAMANO AUTOR\nNOMBREARCHIVO.jpe HASH TAMANO AUTOR";
+    // char requestString[300] = "GET NOMBREARCHIVO.png";
 
-    char requestString[300] = "ONLINE 192.168.100.1 8080\nhola.png datos masdatos hola\nhola.png datos masdatos adios";
+    Request request = Request_constructor(buffer);
+    // Request request = Request_constructor(requestString);
 
-    // HTTPRequest request = HTTPRequest_constructor(buffer);
-    Request request = Request_constructor(requestString);
-        
     if (request.Method == ONLINE){
-
-        //addClientFiles(request);
+        addClientFiles(&request);
+        responseOK(socket);
 
     } else if (request.Method == GET){
-        // char *copyRequestURI = malloc(sizeof(char) * (strlen(request.URI) + 1));
-        // strcpy(copyRequestURI, request.URI);
-
-        // char *parameter = malloc(sizeof(char) * (strlen(request.URI) + 1));
-
-        // strncpy(parameter, request.URI, 7);
-
-        // if(strcmp(parameter, PARAMETERKEY) == 0){
-        //     char *fileName = malloc(sizeof(char) * (strlen(request.URI) + 1));
-        //     strncpy(fileName, request.URI+7, strlen(request.URI));
-
-        //     responseGet(socket,fileName,FOLDERPATH);   
-        //     free(fileName);                     
-        // }
-        // free(copyRequestURI);
-        // free(parameter);
+        char* files = findFile(&request);
+        responseGET(socket, files);
+        free(files);
+        
     } else if (request.Method == OFFLINE){
 
     }

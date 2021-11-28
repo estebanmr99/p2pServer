@@ -1,4 +1,4 @@
-SOURCEC1 = main.c IPFinder.c Server.c Request.c Queue.c
+SOURCEC1 = main.c IPFinder.c Server.c Request.c
 TARGETC1 = server
 
 .PHONY: all

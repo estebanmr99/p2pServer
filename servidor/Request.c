@@ -66,10 +66,13 @@ Request Request_constructor(char *request_str)
     Request request;
     char *request_line = strtok(requested, "|");
     char *files = strtok(NULL, "|");
-    request.Files = copyString(files);
 
     // Parse each section as needed.
     extract_request_line_fields(&request, request_line);
+
+    if(request.Method == ONLINE){
+        request.Files = copyString(files);
+    }
 
     return request;
 }
