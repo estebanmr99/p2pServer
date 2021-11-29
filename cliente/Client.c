@@ -387,7 +387,6 @@ void launch(Client *client)
 
     struct sockaddr_in client_address, peer_address;
 
-    int process_fd;
     int server_fd;
 
     //Inicializar servidor principal
@@ -408,7 +407,7 @@ void launch(Client *client)
     //get_files();
 
     //terminal de cliente para comandos
-    // file_list_request();
+    file_list_request();
 
     pthread_create(&inputThread,NULL,client_input,NULL); // Crea el hilo donde esta funcionando todo
 
@@ -416,9 +415,9 @@ void launch(Client *client)
 
     while(1){
         
-        int client_address_length = sizeof(client_address); //es del struct sockaddr_in
+        int client_address_length = sizeof(client->address); //es del struct sockaddr_in
 
-        process_fd = accept(server_fd,(struct sockaddr*) &client_address, (socklen_t *) &client_address_length);
+        int process_fd = accept(client->socket, (struct sockaddr *) &client->address, (socklen_t *) &client_address_length);
 
         pthread_t t; //creacion de un hilo para cada request
         int *socket = malloc(sizeof(int)); //se asigna un socket
