@@ -269,7 +269,7 @@ void *threaded(void *args)
 
     // char requestString[300] = "ONLINE 192.168.100.1 8080\nNOMBREARCHIVO.png HASH TAMANO AUTOR\nNOMBREARCHIVO.jpe HASH TAMANO AUTOR";
     // char requestString[300] = "GET NOMBREARCHIVO.png";
-
+    printf("%s",buffer);
     Request request = Request_constructor(buffer);
     // Request request = Request_constructor(requestString);
 
