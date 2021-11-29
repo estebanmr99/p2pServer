@@ -275,7 +275,10 @@ int get_file(char *file_name){
         exit(0);
     }
 
+    char test[30000];
     int numSent = send(peer_fd, buffer, 30000, 0);
+    read(peer_fd, test, 30000);
+    printf("%s", test);
 
         if (numSent <= 0){ //Si la conexion con el cliente se cerro deja de enviar los bytes
             if (numSent == 0){
@@ -366,8 +369,6 @@ void *client_input(void *args){
 
 
 void *handle_request(void *args){
-
-
     int socket = *((int*)args);
     free(args);
     printf("CONECTADO\n");
@@ -407,30 +408,22 @@ void launch(Client *client)
     //get_files();
 
     //terminal de cliente para comandos
-    file_list_request();
+    // file_list_request();
 
     pthread_create(&inputThread,NULL,client_input,NULL); // Crea el hilo donde esta funcionando todo
-    pthread_join(inputThread,NULL);
-
-
 
     //El cliente escucha
+
     while(1){
         
         int client_address_length = sizeof(client_address); //es del struct sockaddr_in
 
+        process_fd = accept(server_fd,(struct sockaddr*) &client_address, (socklen_t *) &client_address_length);
 
-        if((process_fd = accept(server_fd,(struct sockaddr*) &client_address, (socklen_t *) &client_address_length)) < 0){
-            perror("Failed to accept"); 
-            exit(0);
-        }
-        
-        else{
-            pthread_t t; //creacion de un hilo para cada request
-            int *socket = malloc(sizeof(int)); //se asigna un socket
-            *socket = process_fd;
-            pthread_create(&t,NULL,handle_request,socket); //se ejecuta el request del hilo al servidor
-        }
+        pthread_t t; //creacion de un hilo para cada request
+        int *socket = malloc(sizeof(int)); //se asigna un socket
+        *socket = process_fd;
+        pthread_create(&t,NULL,handle_request,socket); //se ejecuta el request del hilo al servidor
     }
 
 }
