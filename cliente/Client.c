@@ -1,9 +1,13 @@
 #include "Peer.h"
-#include <dirent.h> 
-#include <stdio.h> 
+#include <dirent.h>
+#include <stdio.h>
+#include <stdlib.h>
 #include <sys/types.h>
 #include <sys/stat.h>
+#include <pwd.h>
 #include <fcntl.h>
+#include <openssl/md5.h>
+#include <string.h>
 
 struct sockaddr_in server_address;
 
@@ -14,7 +18,7 @@ char* concat(const char *s1, const char *s2)
 {
     const size_t len1 = strlen(s1);
     const size_t len2 = strlen(s2);
-    char *result = malloc(len1 + len2 + 1); // +1 for the null-terminator
+    char *result = (char*)malloc(len1 + len2 + 1); // +1 for the null-terminator
     // in real code you would check for errors in malloc here
     memcpy(result, s1, len1);
     memcpy(result + len1, s2, len2 + 1); // +1 to copy the null-terminator
@@ -22,26 +26,26 @@ char* concat(const char *s1, const char *s2)
 
 }
 
-void revstr(char *str1)  
-{  
-    // declare variable  
-    int i, len, temp;  
-    len = strlen(str1); // use strlen() to get the length of str string  
-      
-    // use for loop to iterate the string   
-    for (i = 0; i < len/2; i++)  
-    {  
-        // temp variable use to temporary hold the string  
-        temp = str1[i];  
-        str1[i] = str1[len - i - 1];  
-        str1[len - i - 1] = temp;  
-    }  
+void revstr(char *str1)
+{
+    // declare variable
+    int i, len, temp;
+    len = strlen(str1); // use strlen() to get the length of str string
+
+    // use for loop to iterate the string
+    for (i = 0; i < len/2; i++)
+    {
+        // temp variable use to temporary hold the string
+        temp = str1[i];
+        str1[i] = str1[len - i - 1];
+        str1[len - i - 1] = temp;
+    }
 }
 
 
 char* parse_port(){
 
-    char *result = malloc(sizeof(char)*4);
+    char *result = (char*)malloc(sizeof(char)*4);
 
 
     int port = PORT;
@@ -81,7 +85,7 @@ char* parse_port(){
 
 char* get_files()
 {
-    
+
     char *buffer = "ONLINE ";
 
     buffer = concat(buffer,IP);
@@ -92,27 +96,55 @@ char* get_files()
 
     buffer = concat(buffer,"\n");
 
+    unsigned char c[MD5_DIGEST_LENGTH];
+    FILE *file;
+    struct stat file_info;
+    struct passwd *pw;
+    char file_size[1024];
+    MD5_CTX mdContext;
+    int bytes;
+    char hash[33];
+    unsigned char data[1024];
 
-    char *hash = "8222hnsnkai28bsmmsnsbssmssnwu2u";
+    char *hash1 = "8222hnsnkai28bsmmsnsbssmssnwu2u";
+
     //NOMBREARCHIVO.png HASH TAMANO AUTOR\n
     DIR *d;
     struct dirent *dir;
     d = opendir("files");
-    printf("----------------------------\n");
     if (d) {
         while ((dir = readdir(d)) != NULL) {
             if(dir-> d_type != DT_DIR){ // if the type is not directory just print it with blue color
+
+                char path[] = "files/";
+                strcat(path,dir->d_name);
+                file = fopen (path, "rb");
+                fstat(fileno(file), &file_info);
+                pw = getpwuid(file_info.st_uid);
+
+
+                MD5_Init (&mdContext);
+                while ((bytes = fread (data, 1, 1024, file)) != 0)
+                    MD5_Update (&mdContext, data, bytes);
+                MD5_Final (c,&mdContext);
+                // for(int i = 0; i < MD5_DIGEST_LENGTH; i++) printf("%02x", c[i]);
+                sprintf(hash,"%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x%02x", c[0], c[1], c[2], c[3], c[4], c[5], c[6], c[7], c[8], c[9], c[10], c[11], c[12], c[13], c[14], c[15] );
+
                 buffer = concat(buffer,dir->d_name);
                 buffer = concat(buffer," ");
                 buffer = concat(buffer,hash);
-                buffer = concat(buffer,"\n");   
+                buffer = concat(buffer," ");
+                sprintf(file_size, "%ld", file_info.st_size);
+                buffer = concat(buffer,file_size);
+                buffer = concat(buffer," ");
+                buffer = concat(buffer,pw->pw_name);
+                buffer = concat(buffer,"\n");
+
+                fclose (file);
             }
     }
     closedir(d);
   }
-
-  printf("%s\n",buffer);
-
 
 
   return buffer;
@@ -126,13 +158,13 @@ int online(){
 
     //create socket
     if((peer_fd = socket(AF_INET, SOCK_STREAM , 0)) < 0){
-        perror("Failed to create socket"); 
+        perror("Failed to create socket");
         exit(0);
     }
 
     //connect to server
     if(connect(peer_fd,(struct sockaddr*) &server_address, sizeof(server_address)) < 0){
-        perror("Failed to connect"); 
+        perror("Failed to connect");
         exit(0);
     }
 
@@ -145,7 +177,7 @@ int online(){
     buffer = concat(buffer,parse_port());
 
     buffer = concat(buffer,"\n");
-    
+
     printf("%s\n",buffer);
 
     int numSent = send(peer_fd, buffer, 30000, 0);
@@ -174,12 +206,12 @@ char* scan_line(char *line)
         {
             // resetting capacity
             if (capacity == 0)
-                capacity = 2; // some initial fixed length 
+                capacity = 2; // some initial fixed length
             else
                 capacity *= 2; // double the size
 
             // try reallocating the memory
-            if( (temp = realloc(line, capacity * sizeof(char))) == NULL ) //allocating memory
+            if( (temp = (char*)realloc(line, capacity * sizeof(char))) == NULL ) //allocating memory
             {
                 printf("ERROR: unsuccessful allocation");
                 // return line; or you can exit
@@ -195,7 +227,7 @@ char* scan_line(char *line)
     line[length + 1] = '\0'; //inserting null character at the end
 
     // remove additionally allocated memory
-    if( (temp = realloc(line, (length + 1) * sizeof(char))) == NULL )
+    if( (temp = (char*)realloc(line, (length + 1) * sizeof(char))) == NULL )
     {
         printf("ERROR: unsuccessful allocation");
         // return line; or you can exit
@@ -218,13 +250,13 @@ int file_list_request(){
 
     //create socket
     if((peer_fd = socket(AF_INET, SOCK_STREAM , 0)) < 0){
-        perror("Failed to create socket"); 
+        perror("Failed to create socket");
         exit(0);
     }
 
     //connect to server
     if(connect(peer_fd,(struct sockaddr*) &server_address, sizeof(server_address)) < 0){
-        perror("Failed to connect"); 
+        perror("Failed to connect");
         exit(0);
     }
 
@@ -265,13 +297,13 @@ int get_file(char *file_name){
 
     //create socket
     if((peer_fd = socket(AF_INET, SOCK_STREAM , 0)) < 0){
-        perror("Failed to create socket"); 
+        perror("Failed to create socket");
         exit(0);
     }
 
     //connect to server
     if(connect(peer_fd,(struct sockaddr*) &server_address, sizeof(server_address)) < 0){
-        perror("Failed to connect"); 
+        perror("Failed to connect");
         exit(0);
     }
 
@@ -303,7 +335,7 @@ void parse_command(char *user_line){
 
     if(strcmp(command,"find")==0){
 
-        
+
         ptr = strtok(NULL," ");
 
         char *file_name;
@@ -346,7 +378,7 @@ void parse_command(char *user_line){
         free(user_line);
     }
 
-       
+
 }
 
 
@@ -390,15 +422,15 @@ void launch(Client *client)
     int server_fd;
 
     //Inicializar servidor principal
-    server_address.sin_family = PF_INET; 
-    server_address.sin_addr.s_addr = inet_addr(SERVER_IP); 
-    server_address.sin_port = htons(SERVER_PORT); 
+    server_address.sin_family = PF_INET;
+    server_address.sin_addr.s_addr = inet_addr(SERVER_IP);
+    server_address.sin_port = htons(SERVER_PORT);
 
 
     //Inicializar peer
-    peer_address.sin_family = PF_INET; 
-    peer_address.sin_addr.s_addr = INADDR_ANY; 
-    peer_address.sin_port = htons(PORT); 
+    peer_address.sin_family = PF_INET;
+    peer_address.sin_addr.s_addr = INADDR_ANY;
+    peer_address.sin_port = htons(PORT);
 
 
     //online();
@@ -414,13 +446,13 @@ void launch(Client *client)
     //El cliente escucha
 
     while(1){
-        
+
         int client_address_length = sizeof(client->address); //es del struct sockaddr_in
 
         int process_fd = accept(client->socket, (struct sockaddr *) &client->address, (socklen_t *) &client_address_length);
 
         pthread_t t; //creacion de un hilo para cada request
-        int *socket = malloc(sizeof(int)); //se asigna un socket
+        int *socket = (int*)malloc(sizeof(int)); //se asigna un socket
         *socket = process_fd;
         pthread_create(&t,NULL,handle_request,socket); //se ejecuta el request del hilo al servidor
     }

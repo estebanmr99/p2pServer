@@ -6,7 +6,7 @@ TARGETC1 = client
 all: c1
 
 c1:
-	$(CC) $(SOURCEC1) -o $(TARGETC1) -lpthread -lm
+	$(CC) $(SOURCEC1) -o $(TARGETC1) -lpthread -lm -lssl -lcrypto
 
 clean:
 	-rm -f *.o
