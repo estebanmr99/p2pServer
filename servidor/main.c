@@ -299,7 +299,7 @@ void *threaded(void *args)
 void launch(Server *server)
 {
     while(killFlag){
-        printf("===== WAITING FOR CONNECTION =====\n");
+        printf("\n===== WAITING FOR CONNECTION =====\n");
 
         int address_length = sizeof(server->address);
 
