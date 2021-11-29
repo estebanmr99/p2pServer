@@ -1,4 +1,4 @@
-SOURCEC1 = Client.c Peer.c
+SOURCEC1 = main.c Peer.c
 TARGETC1 = client
 
 .PHONY: all
