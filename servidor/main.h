@@ -14,6 +14,7 @@
 #define PORT 8001
 #define INDEXFILEPATH "./files/index.txt" // Ruta donde se encuentran los archivos disponibles del servidor
 #define NOTFOUNDPAGEPATH "./files/404.html" // Archivo de 404 cuando la solicitud falla
+#define P(line) printf("%d\n",line)
 
 // Struct para guardar la informacion del archivo que se abrio dado X request
 // Guarda el tamaño del archivo y el contenido del archivo

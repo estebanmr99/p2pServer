@@ -8,62 +8,50 @@
 #include <fcntl.h>
 #include <openssl/md5.h>
 #include <string.h>
-#include "LinkedList.h"
 
 struct sockaddr_in server_address;
+pthread_mutex_t mutex_aux = PTHREAD_MUTEX_INITIALIZER;
+pthread_cond_t cv = PTHREAD_COND_INITIALIZER;
 
-
-File *file_list; 
 
 
 pthread_t inputThread;
 
-
-void restart_list(){
-    file_list = malloc(sizeof(File)); //
-    file_list->file_name = malloc(sizeof(char *));
-
-    //file_list->isEmpty = malloc(sizeof(int));
-    file_list->files = malloc(sizeof(LinkedList));
-    file_list->isEmpty = 1; //vacio no se puede hacer request a los peers
-
-}
-
+//---------------------------------------------------------------------------------------------------------------------------------------
+// Funcion para concatenar dos punteros de char
 char* concat(const char *s1, const char *s2)
 {
     const size_t len1 = strlen(s1);
     const size_t len2 = strlen(s2);
-    char *result = (char*)malloc(len1 + len2 + 1); // +1 for the null-terminator
-    // in real code you would check for errors in malloc here
+    char *result = (char*)malloc(len1 + len2 + 1); 
+
     memcpy(result, s1, len1);
-    memcpy(result + len1, s2, len2 + 1); // +1 to copy the null-terminator
+    memcpy(result + len1, s2, len2 + 1); 
     return result;
 
 }
 
+//---------------------------------------------------------------------------------------------------------------------------------------
+// Funcion para retornar la cadena de chars inversa
 void revstr(char *str1)
 {
-    // declare variable
-    int i, len, temp;
-    len = strlen(str1); // use strlen() to get the length of str string
 
-    // use for loop to iterate the string
+    int i, len, temp;
+    len = strlen(str1); 
+
     for (i = 0; i < len/2; i++)
     {
-        // temp variable use to temporary hold the string
         temp = str1[i];
         str1[i] = str1[len - i - 1];
         str1[len - i - 1] = temp;
     }
 }
 
+//---------------------------------------------------------------------------------------------------------------------------------------
+// Funcion para castear el puerto a string
+char* parse_port(long int port){
 
-char* parse_port(){
-
-    char *result = (char*)malloc(sizeof(char)*4);
-
-
-    int port = PORT;
+    char *result = "";
 
     while(port!=0){
         int auxn = port%10;
@@ -97,7 +85,8 @@ char* parse_port(){
     return result;
 }
 
-
+//---------------------------------------------------------------------------------------------------------------------------------------
+// Funcion que envia al servidor principal el request del ONLINE
 char* get_files()
 {
 
@@ -107,7 +96,7 @@ char* get_files()
 
     buffer = concat(buffer," ");
 
-    buffer = concat(buffer,parse_port());
+    buffer = concat(buffer,parse_port(PORT));
 
     buffer = concat(buffer,"\n");
 
@@ -166,86 +155,46 @@ char* get_files()
 }
 
 
-int online(){
-
-    int peer_fd;
-    uint16_t number_of_file;
-
-    //create socket
-    if((peer_fd = socket(AF_INET, SOCK_STREAM , 0)) < 0){
-        perror("Failed to create socket");
-        exit(0);
-    }
-
-    //connect to server
-    if(connect(peer_fd,(struct sockaddr*) &server_address, sizeof(server_address)) < 0){
-        perror("Failed to connect");
-        exit(0);
-    }
-
-    char *buffer = "ONLINE ";
-
-    buffer = concat(buffer,IP);
-
-    buffer = concat(buffer," ");
-
-    buffer = concat(buffer,parse_port());
-
-    buffer = concat(buffer,"\n");
-
-    printf("%s\n",buffer);
-
-    int numSent = send(peer_fd, buffer, 30000, 0);
-
-        if (numSent <= 0){ //Si la conexion con el cliente se cerro deja de enviar los bytes
-            if (numSent == 0){
-                printf("The client was not written to: disconnected\n");
-            } else {
-                perror("The client was not written to");
-            }
-            return 0;
-        }
-}
-
-
+//---------------------------------------------------------------------------------------------------------------------------------------
+// Funcion que lee una entrada hasta el salto de linea en consola
 char* scan_line(char *line)
 {
-    int ch;             // as getchar() returns `int`
-    long capacity = 0;  // capacity of the buffer
-    long length = 0;    // maintains the length of the string
-    char *temp = NULL;  // use additional pointer to perform allocations in order to avoid memory leaks
+    int ch;             
+    long capacity = 0;  
+    long length = 0;    
+    char *temp = NULL;  
 
     while ( ((ch = getchar()) != '\n') && (ch != EOF) )
     {
         if((length + 1) >= capacity)
         {
-            // resetting capacity
+            
             if (capacity == 0)
-                capacity = 2; // some initial fixed length
+                capacity = 2; 
             else
-                capacity *= 2; // double the size
+                capacity *= 2; 
 
-            // try reallocating the memory
+            
             if( (temp = (char*)realloc(line, capacity * sizeof(char))) == NULL ) //allocating memory
             {
                 printf("ERROR: unsuccessful allocation");
-                // return line; or you can exit
+                
                 exit(1);
             }
 
             line = temp;
         }
 
-        line[length] = (char) ch; //type casting `int` to `char`
+        line[length] = (char) ch; 
         length++;
     }
-    line[length + 1] = '\0'; //inserting null character at the end
+    line[length + 1] = '\0'; 
 
-    // remove additionally allocated memory
+    
     if( (temp = (char*)realloc(line, (length + 1) * sizeof(char))) == NULL )
     {
         printf("ERROR: unsuccessful allocation");
-        // return line; or you can exit
+        
         exit(1);
     }
 
@@ -254,14 +203,12 @@ char* scan_line(char *line)
 }
 
 
-
+//---------------------------------------------------------------------------------------------------------------------------------------
+// Funcion que recibe el buffer del servidor principal de FIND
 int file_list_request(){
 
     int peer_fd;
-    int request_type = 1;
-    uint16_t number_of_file;
-    //std::string file_name;
-    uint32_t file_length;
+
 
     //create socket
     if((peer_fd = socket(AF_INET, SOCK_STREAM , 0)) < 0){
@@ -277,7 +224,6 @@ int file_list_request(){
 
     char *buffer = get_files();
 
-    //printf("%s",buffer);
     int numSent = send(peer_fd, buffer, 30000, 0);
 
         if (numSent <= 0){ //Si la conexion con el cliente se cerro deja de enviar los bytes
@@ -290,22 +236,17 @@ int file_list_request(){
         }
 }
 
-void find_file(char *name_file){
 
-    printf("%s\n",name_file);
-
-}
-
-void request_file(char *file_info){
-    printf("%s\n",file_info);
-}
-
+//---------------------------------------------------------------------------------------------------------------------------------------
+// Funcion que prepara el request de FIND
 void prepare_request(char *response,char *file_name){
     
     FILE *fp = fopen(FILEPATH, "w"); // Abre archivo
     //printf("%s\n",file_name);
-    fputs(file_name,fp);  
+    fputs(file_name,fp);
+
     free(file_name);
+
     fputs("\n",fp);      
     char *st_result, *st_help;
     response = strtok_r(response, "\n", &st_result);
@@ -326,6 +267,91 @@ void prepare_request(char *response,char *file_name){
     fclose(fp);
 }
 
+//---------------------------------------------------------------------------------------------------------------------------------------
+// Funcion para calcular los segmentos de bytes para descargar
+int calculate_chunk(long int size, int peers){
+
+    int total = size / CHUNK_SIZE;
+    
+    if((CHUNK_SIZE * total) < size)
+        total += 1;
+    
+    return total;
+}
+
+//---------------------------------------------------------------------------------------------------------------------------------------
+// Funcion que se conecta con un peer y guarda en un buffer de bytes el segmento del archivo
+void *send_request_to_peers(void *args){
+
+    Peer peer = *((Peer*)args);
+
+    
+    //request 77789 2a888118171d99cc037ea060545076c4
+    int sock_fd;
+
+    struct sockaddr_in peer_address;
+
+    peer_address.sin_family = PF_INET;
+    peer_address.sin_addr.s_addr = inet_addr(peer.address);
+    peer_address.sin_port = htons(peer.port);
+
+    //create socket
+    if((sock_fd = socket(AF_INET, SOCK_STREAM , 0)) < 0){
+        perror("Failed to create socket");
+        exit(0);
+    }
+
+    //connect to server
+    if(connect(sock_fd,(struct sockaddr*) &peer_address, sizeof(peer_address)) < 0){
+        perror("Failed to connect");
+        exit(0);
+    }
+    
+    //nombre archivo
+    //printf("FILE: %s\n",peer.file_name);
+    send(sock_fd,&peer.file_name ,sizeof(peer.file_name), 0);
+    //hash
+    send(sock_fd,&peer.hash,sizeof(peer.hash),0);
+    //size
+    send(sock_fd,&peer.size,sizeof(peer.size),0);
+    //index
+    send(sock_fd,&peer.index,sizeof(peer.index),0);
+    //chunk
+    send(sock_fd,&peer.chunk,sizeof(peer.chunk),0);
+
+    //recibe el buffer de bytes
+    char buffer[CHUNK_SIZE];
+
+    //P(324);
+    printf("--->INICIA EL PEER: %ld\n",peer.chunk);
+    recv(sock_fd, &buffer, sizeof(buffer), 0);
+    //printf("recibe el buffer el cliente\n");
+    //printf("Index: %d\n",peer.index);
+
+    //P(333);
+    //pthread_mutex_lock(&mutex_aux);
+    printf("CLIENTE: INDEX: %ld PEER: %d\n",peer.chunk,peer.index);
+    FILE *fp = fopen(parse_port((long)peer.chunk), "wb");
+    printf("CLIENTE %ld : GUARDA EL ARCHIVO\n",peer.chunk);
+    //P(335);
+    fwrite(buffer , sizeof(buffer) ,1 , fp);
+    printf("CLIENTE %ld : ESCRIBE EL BUFFER EN EL ARCHIVO\n",peer.chunk);
+    //P(337);
+    fclose(fp);
+    printf("CLIENTE %ld : CIERRA EL ARCHIVO\n",peer.chunk);
+    //pthread_mutex_unlock(&mutex_aux);
+
+    
+    //sleep(5);
+    
+    close(sock_fd);
+    printf("CLIENTE %ld : CIERRA EL SOCKET\n",peer.chunk);
+
+    pthread_exit(0);
+}
+
+//---------------------------------------------------------------------------------------------------------------------------------------
+// Funcion que arma el request GET al servidor principal
 int get_file(char *file_name){
 
     char *buffer = "GET ";
@@ -367,6 +393,8 @@ int get_file(char *file_name){
 
 }
 
+//---------------------------------------------------------------------------------------------------------------------------------------
+// Funcion para copiar un string
 char* copyString(char s[])
 {
     char* s2;
@@ -377,19 +405,19 @@ char* copyString(char s[])
 }
 
 
+//---------------------------------------------------------------------------------------------------------------------------------------
+// Funcion que encuentra los peers que tienen el archivo 
 void find_peers(char* size,char* hash){
 
     int peers_count = 0;
     char *file_name;
+    char *peers = (char *)calloc(1, sizeof(char));
+
 
     if(access(FILEPATH, 0 ) == 0){ // Si el achivo existe en la ruta de archivos
         FILE *fp = fopen(FILEPATH, "r");
         int lineLength = 360;
         char line[lineLength];
-
-        
-
-        char *peers = (char *)calloc(1, sizeof(char));
 
         int flag = 1;
 
@@ -397,12 +425,9 @@ void find_peers(char* size,char* hash){
             char *copyLine = copyString(line);
             if(flag){
                 file_name = copyString(copyLine);
-                peers = concat(peers,file_name);
-                //peers = concat(peers,"\n");//guardo el nombre del archivo
-                peers = concat(peers,hash); //se guarda el hash
-                peers = concat(peers,"\n"); //separador \n
-                peers = concat(peers,size); //se guarda el tamanio
-                peers = concat(peers,"\n"); //separador \n        
+
+                //peers = concat(peers,file_name);
+  
                 flag = 0;
                
             }
@@ -434,27 +459,91 @@ void find_peers(char* size,char* hash){
         }
 
         fclose(fp);
-        free(file_name);
-        free(size);
-        free(hash);
-
         
-        printf("Buffer: \n%s\n Total de peers: %d\n",peers,peers_count);
+        //printf("Buffer: \n%s\n Total de peers: %d\n",peers,peers_count);
+
+
     }
+
+    Peer *peers_list = malloc(sizeof(Peer)*peers_count);
+
+    long int chunk_size = calculate_chunk((long)atoi(size),peers_count);
+    
+    char *st_result, *st_help;
+
+    peers = strtok_r(peers, "\n", &st_result);
+
+    int i = 0;
+    while (peers){
+
+        char *help = strtok_r(peers, " ", &st_help);
+
+        peers_list[i].address = help;//IP
+
+        peers_list[i].file_name = copyString(file_name);
+
+        peers_list[i].size = (long)atoi(size);
+
+        peers_list[i].index = i;
+
+        peers_list[i].chunk = chunk_size;
+
+        peers_list[i].hash = copyString(hash);
+
+        help = strtok_r(NULL, " ", &st_help); //PORT
+      
+        help[strcspn(help, "\n")] = 0; //quitar salto de linea para usar atoi
+        
+        peers_list[i].port = atoi(help);
+
+        peers = strtok_r(NULL, "\n", &st_result);
+        i++;
+
+    }
+
+    free(file_name);
+    free(size);
+    free(hash);
+
+    //asignar fuera el indice que le corresponde
+
+    int total_chunks = calculate_chunk(peers_list[0].size,peers_count);
+
+    Peer *peers_requests = malloc(sizeof(Peer)*total_chunks);
+
+    for(int i=0;i<total_chunks;i++){
+        int index = rand() % peers_count;//determinar el peer
+        peers_requests[i].address = peers_list[index].address;
+        peers_requests[i].port = peers_list[index].port;
+        peers_requests[i].file_name = peers_list[index].file_name;
+        peers_requests[i].hash = peers_list[index].hash;
+        peers_requests[i].size = peers_list[index].size;
+        peers_requests[i].index = index;
+        peers_requests[i].chunk = i;
+    }
+
+    pthread_t peers_threads[total_chunks];
+    for(int i=0; i<total_chunks;i++){
+        printf("PEER: index: %ld peer: %d\n",peers_requests[i].chunk,peers_requests[i].index);
+        //pthread_mutex_lock(&mutex_aux);
+
+        pthread_create(&peers_threads[i],NULL,send_request_to_peers, &peers_requests[i]);//se llama el peer que se eligio
+        //pthread_join(peers_threads[i],NULL);//se llama el peer que se eligio
+    }
+    //for(int i=0; i<total_chunks;i++){
+
+    //    pthread_join(peers_threads[i],NULL);//se llama el peer que se eligio
+    //}
 
 }
 
+//---------------------------------------------------------------------------------------------------------------------------------------
+// Funcion que parsea el input del usuario
 void parse_command(char *user_line){
-
-    //printf("%s\n",user_line);
-
-    char *command;
-
-    command = (char *)malloc(strlen(user_line)*sizeof(char));
 
     char *ptr = strtok(user_line," ");
 
-    strcpy(command,ptr);
+    char *command = copyString(ptr);
 
     if(strcmp(command,"find")==0){
 
@@ -463,9 +552,9 @@ void parse_command(char *user_line){
 
         char *file_name;
 
-        file_name = (char *)malloc(strlen(ptr)*sizeof(char));
+        file_name = copyString(ptr);
 
-        strcpy(file_name,ptr);
+        //strcpy(file_name,ptr);
 
 
         get_file(file_name);
@@ -479,13 +568,15 @@ void parse_command(char *user_line){
         char *size,*hash;
         ptr = strtok(NULL," ");
 
-        size = (char *)malloc(strlen(ptr)*sizeof(char));
+        //size = (char *)malloc(strlen(ptr)*sizeof(char));
 
-        strcpy(size, ptr);
+        size = copyString(ptr);
+
         ptr = strtok(NULL," ");
-        hash = (char *)malloc(strlen(ptr)*sizeof(char));
 
-        strcpy(hash, ptr);
+        //hash = (char *)malloc(strlen(ptr)*sizeof(char));
+
+        hash = copyString(ptr);
 
         printf("command: %s\nsize: %s\nhash: %s\n",command,size,hash);
 
@@ -504,12 +595,10 @@ void parse_command(char *user_line){
         printf("command not found!\n");
         free(user_line);
     }
-
-
 }
 
-
-
+//---------------------------------------------------------------------------------------------------------------------------------------
+// Funcion del ciclo de la consola
 void *client_input(void *args){
 
     while(1){
@@ -518,26 +607,57 @@ void *client_input(void *args){
         char *a = NULL;
 
         a = scan_line(a); //function call to scan the line
-
-
         parse_command(a);
     }
 }
 
 
 
-
+//---------------------------------------------------------------------------------------------------------------------------------------
+// Funcion que arma el buffer del archivo a enviar como peer
 void *handle_request(void *args){
-    int socket = *((int*)args);
+
+    int peer_fd = *((int*)args);
     free(args);
-    printf("CONECTADO\n");
+    
+    char *file_name,*hash;
+    long int size,chunk;
+    int index;
 
-    char buffer[30000];
+    recv(peer_fd, &file_name, sizeof(file_name), 0);
+    recv(peer_fd, &hash, sizeof(hash), 0);
+    recv(peer_fd, &size, sizeof(size), 0);
+    recv(peer_fd, &index, sizeof(index), 0);
+    recv(peer_fd, &chunk, sizeof(chunk), 0);
 
-    read(socket, buffer, 30000);
+    printf("CHUNK: %ld : PEER: %d\n",chunk,index);
 
-    printf("%s",buffer);
+    char *path = "files/";
+    concat(path,file_name);
 
+    FILE *fp = fopen(path,"rb");
+    printf("PEER : %ld ABRE EL ARCHIVO\n",chunk);
+
+    char buffer[CHUNK_SIZE];
+    int i = CHUNK_SIZE * chunk;
+
+    fseek(fp,i,SEEK_SET);//el stream apunte al inicio de los bytes del chunk
+    printf("PEER : %ld INDEXA EL ARCHIVO\n",chunk);
+
+    //printf("lee desde este punto\n");
+    fread(buffer,sizeof(buffer),1,fp);
+    printf("PEER : %ld LLENA EL BUFFER\n",chunk);
+
+    fclose(fp);
+    printf("PEER : %ld CIERRA EL ARCHIVO\n",chunk);
+
+
+    send(peer_fd,&buffer,sizeof(buffer), 0);
+    printf("PEER : %ld ENVIA EL BUFFER\n",chunk);
+
+    close(peer_fd);
+
+    pthread_exit(0);
 }
 
 
@@ -560,13 +680,7 @@ void launch(Client *client)
     peer_address.sin_port = htons(PORT);
 
 
-    //online();
-
-
-    //get_files();
-
-    //terminal de cliente para comandos
-    //file_list_request();
+    file_list_request();
 
     pthread_create(&inputThread,NULL,client_input,NULL); // Crea el hilo donde esta funcionando todo
 
@@ -582,6 +696,7 @@ void launch(Client *client)
         int *socket = (int*)malloc(sizeof(int)); //se asigna un socket
         *socket = process_fd;
         pthread_create(&t,NULL,handle_request,socket); //se ejecuta el request del hilo al servidor
+        //pthread_join(t,NULL);
     }
 
 }
@@ -591,8 +706,28 @@ int main(){
 
     Client client = client_constructor(AF_INET,SOCK_STREAM, 0, IP, PORT, 5000, launch);
 
-    restart_list();
+    /*
+    FILE *fp;
+    struct stat file_info;
+    fp = fopen("files/meme.jpeg", "rb"); // Abre archivo
 
+    fstat(fileno(fp), &file_info);
+
+    fseek(fp,0,SEEK_SET);
+    char buffer[file_info.st_size];
+
+    //fread(&buffer,file_info.st_size, 1, fp);
+
+    //printf("%s\n",buffer);
+
+    //fclose(fp);
+
+    //FILE * f = fopen("files/test.jpeg", "wb" );
+
+    //fwrite(buffer , file_info.st_size ,1 , f);
+
+    fclose(f);
+    */
 
     client.launch(&client);
 

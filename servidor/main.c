@@ -39,13 +39,14 @@ void insertFirst(int key, pthread_t thread) {
 //---------------------------------------------------------------------------------------------------------------------------------------
 // Funcion que elimina un elemento de la lista dada una llave
 struct node* delete(int key) {
+   P(42);
    struct node* current = headL;
    struct node* previous = NULL;
-	
+   P(45);	
    if(headL == NULL) { // si la lista esta vacia
       return NULL;
    }
-
+   P(49);
    while(current->key != key) { //navegar sobre la lista		
       if(current->next == NULL) {
          return NULL;
@@ -54,19 +55,19 @@ struct node* delete(int key) {
          current = current->next;             
       }
    }
-
+    P(58);
    if(current == headL) { // Si encuentra la cabeza cambia el primer puntero al siguiente
       headL = headL->next;
    } else {
       current->prev->next = current->next;
    }    
-
+   P(64);
    if(current == last) {
       last = current->prev;
    } else {
       current->next->prev = current->prev;
    }
-	
+   P(70);
    return current;
 }
 
@@ -197,6 +198,7 @@ void addClientFiles(Request *request){
             tok = strtok(NULL, "\n");
         }
         fclose(fp);
+        P(200);
         free(copyFiles);
     }
 }
@@ -225,18 +227,21 @@ char* findFile(Request *request){
         const char s[2] = " ";
         char *token;
 
+        P(230);
         result = (char *)calloc(1, sizeof(char));
-
+        P(232);
         while(fgets(line, sizeof(line), fp)) {
             char *copyLine = copyString(line);
             token = strtok(line, s);
             if (strcmp(fileName, token) == 0){
                 result = concat(result, copyLine);
             }
+            P(239);
             free(copyLine);
         }
 
         fclose(fp);
+        P(242);
         free(fileName);
     }
 
@@ -245,13 +250,19 @@ char* findFile(Request *request){
 
 void freeRequest(Request *request){
     if (request->Method == GET){
+        P(251);
         free(request->FileName);
     } else if (request->Method == ONLINE){
+        P(254);
         free(request->IP);
+        P(256);
         free(request->Port);
+        P(258);
         free(request->Files);
     } else if (request->Method == OFFLINE){
+        P(261);
         free(request->IP);
+        P(263);
         free(request->Port);
     }
 }
@@ -262,6 +273,7 @@ void *threaded(void *args)
 {
     char buffer[30000];
     int socket = *((int*)args);
+    P(274);
     free(args);
     
     read(socket, buffer, 30000);
@@ -279,17 +291,21 @@ void *threaded(void *args)
     } else if (request.Method == GET){
         char* files = findFile(&request);
         responseGET(socket, files);
+        P(292);
         free(files);
         
     } else if (request.Method == OFFLINE){
 
     }
-
+    P(298);
     freeRequest(&request);
     close(socket);
     pthread_mutex_lock(&listMutex);
+    P(302);
     free(delete(pthread_self()));
+    P(306);
     pthread_mutex_unlock(&listMutex);
+    P(308);
     pthread_exit(0);
 }
 
@@ -308,6 +324,7 @@ void launch(Server *server)
         int *socket = malloc(sizeof(int)); //se asigna un socket
         *socket = new_socket;
         pthread_create(&t,NULL,threaded,socket); //se ejecuta el request del hilo al servidor
+        P(327);
         insertFirst(t, t); //se guarda el id del hilo en la lista enlazada
     }
 }

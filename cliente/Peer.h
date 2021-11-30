@@ -11,30 +11,21 @@
 #include <string.h>
 #include <sys/types.h>
 #include <pthread.h>
-#include "LinkedList.h"
 
 #define PORT 8082
-#define CHUNK_SIZE 1024
+#define CHUNK_SIZE 10000
 #define IP "127.0.0.1"
 #define SERVER_IP "192.168.0.22"
 #define SERVER_PORT 8001
 #define FILEPATH "REQUEST_LIST.txt"
-
-typedef struct Info{
-    char* hash;
-    char* address;
-    char* author;
-    int port;
-    int size;
-}Info;
-
-typedef struct File{
-    char* file_name;
-    LinkedList *files;
-    int isEmpty;
-}File;
+#define P(line) printf("%d\n",line)
 
 typedef struct Peer{
+    char *file_name;
+    char *hash;
+    long size;
+    long chunk;
+    int index;
     char *address;
     int port;
 }Peer;
