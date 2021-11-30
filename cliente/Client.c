@@ -8,11 +8,26 @@
 #include <fcntl.h>
 #include <openssl/md5.h>
 #include <string.h>
+#include "LinkedList.h"
 
 struct sockaddr_in server_address;
 
 
+File *file_list; 
+
+
 pthread_t inputThread;
+
+
+void restart_list(){
+    file_list = malloc(sizeof(File)); //
+    file_list->file_name = malloc(sizeof(char *));
+
+    //file_list->isEmpty = malloc(sizeof(int));
+    file_list->files = malloc(sizeof(LinkedList));
+    file_list->isEmpty = 1; //vacio no se puede hacer request a los peers
+
+}
 
 char* concat(const char *s1, const char *s2)
 {
@@ -285,13 +300,39 @@ void request_file(char *file_info){
     printf("%s\n",file_info);
 }
 
+void prepare_request(char *response,char *file_name){
+    
+    FILE *fp = fopen("REQUEST_LIST.txt", "w"); // Abre archivo
+    //printf("%s\n",file_name);
+    fputs(file_name,fp);  
+    free(file_name);
+    fputs("\n",fp);      
+    char *st_result, *st_help;
+    response = strtok_r(response, "\n", &st_result);
+    while (response){
+    char *help = strtok_r(response, " ", &st_help);
+    help = strtok_r(NULL, " ", &st_help);
+    int i = 0;    
+    while (help) {
+         fputs(help,fp);
+         if(i!=4)fputs(" ",fp);
+         help = strtok_r(NULL, " ", &st_help);
+         i++;
+    }
+    //i++;
+    fputs("\n",fp);
+    response = strtok_r(NULL, "\n", &st_result);
+    }
+    fclose(fp);
+}
+
 int get_file(char *file_name){
 
     char *buffer = "GET ";
 
     buffer = concat(buffer,file_name);
 
-    printf("%s\n",buffer);
+    //printf("%s\n",buffer);
 
     int peer_fd;
 
@@ -307,19 +348,22 @@ int get_file(char *file_name){
         exit(0);
     }
 
-    char test[30000];
+    char response[30000];
     int numSent = send(peer_fd, buffer, 30000, 0);
-    read(peer_fd, test, 30000);
-    printf("%s", test);
+    read(peer_fd, response, 30000);
 
-        if (numSent <= 0){ //Si la conexion con el cliente se cerro deja de enviar los bytes
-            if (numSent == 0){
-                printf("The client was not written to: disconnected\n");
-            } else {
-                perror("The client was not written to");
-            }
-            return 0;
+    printf("%s", response);
+
+    prepare_request(response, file_name);
+
+    if (numSent <= 0){ //Si la conexion con el cliente se cerro deja de enviar los bytes
+        if (numSent == 0){
+            printf("The client was not written to: disconnected\n");
+        } else {
+            perror("The client was not written to");
         }
+        return 0;
+    }
 
 }
 
@@ -343,10 +387,8 @@ void parse_command(char *user_line){
         file_name = (char *)malloc(strlen(ptr)*sizeof(char));
 
 
-        //char *file_name = malloc(sizeof(char)*strlen(ptr));
 
         strcpy(file_name,ptr);
-        printf("command: %s\nfile name: %s\n",command,file_name);
 
 
         get_file(file_name);
@@ -439,7 +481,7 @@ void launch(Client *client)
     //get_files();
 
     //terminal de cliente para comandos
-    file_list_request();
+    //file_list_request();
 
     pthread_create(&inputThread,NULL,client_input,NULL); // Crea el hilo donde esta funcionando todo
 
@@ -459,9 +501,13 @@ void launch(Client *client)
 
 }
 
+
 int main(){
 
     Client client = client_constructor(AF_INET,SOCK_STREAM, 0, IP, PORT, 5000, launch);
+
+    restart_list();
+
 
     client.launch(&client);
 

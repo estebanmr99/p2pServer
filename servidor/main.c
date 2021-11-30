@@ -196,7 +196,6 @@ void addClientFiles(Request *request){
             fputs("\n", fp);
             tok = strtok(NULL, "\n");
         }
-
         fclose(fp);
         free(copyFiles);
     }
