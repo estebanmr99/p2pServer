@@ -12,13 +12,20 @@
 #include <sys/types.h>
 #include <pthread.h>
 
-#define PORT 8082
-#define CHUNK_SIZE 10000
+// #define PORT 8082
+// #define SERVER_IP "192.168.100.81"
+// #define SERVER_PORT 8001
+// #define FILESPATH "files/"
+
 #define IP "127.0.0.1"
-#define SERVER_IP "192.168.0.22"
-#define SERVER_PORT 8001
+#define CHUNK_SIZE 10000
 #define FILEPATH "REQUEST_LIST.txt"
 #define P(line) printf("%d\n",line)
+
+int PORT;
+char SERVER_IP[30];
+int SERVER_PORT;
+char FILESPATH[300];
 
 typedef struct Peer{
     char *file_name;

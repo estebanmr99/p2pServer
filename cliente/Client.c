@@ -13,8 +13,6 @@ struct sockaddr_in server_address;
 pthread_mutex_t mutex_aux = PTHREAD_MUTEX_INITIALIZER;
 pthread_cond_t cv = PTHREAD_COND_INITIALIZER;
 
-
-
 pthread_t inputThread;
 
 //---------------------------------------------------------------------------------------------------------------------------------------
@@ -110,18 +108,16 @@ char* get_files()
     char hash[33];
     unsigned char data[1024];
 
-    char *hash1 = "8222hnsnkai28bsmmsnsbssmssnwu2u";
-
     //NOMBREARCHIVO.png HASH TAMANO AUTOR\n
     DIR *d;
     struct dirent *dir;
-    d = opendir("files");
+    d = opendir(FILESPATH);
     if (d) {
         while ((dir = readdir(d)) != NULL) {
             if(dir-> d_type != DT_DIR){ // if the type is not directory just print it with blue color
 
-                char path[] = "files/";
-                strcat(path,dir->d_name);
+                // char path[] = "files/";
+                char *path = concat(FILESPATH, dir->d_name);
                 file = fopen (path, "rb");
                 fstat(fileno(file), &file_info);
                 pw = getpwuid(file_info.st_uid);
@@ -632,8 +628,7 @@ void *handle_request(void *args){
 
     printf("CHUNK: %ld : PEER: %d\n",chunk,index);
 
-    char *path = "files/";
-    concat(path,file_name);
+    char *path = concat(FILESPATH,file_name);
 
     FILE *fp = fopen(path,"rb");
     printf("PEER : %ld ABRE EL ARCHIVO\n",chunk);
@@ -702,32 +697,17 @@ void launch(Client *client)
 }
 
 
-int main(){
+int main(int argc, char**argv){
+
+    strcpy(SERVER_IP, argv[1]);
+
+    SERVER_PORT = atoi(argv[2]);
+
+    PORT = atoi(argv[3]);
+
+    strcpy(FILESPATH, argv[4]);
 
     Client client = client_constructor(AF_INET,SOCK_STREAM, 0, IP, PORT, 5000, launch);
-
-    /*
-    FILE *fp;
-    struct stat file_info;
-    fp = fopen("files/meme.jpeg", "rb"); // Abre archivo
-
-    fstat(fileno(fp), &file_info);
-
-    fseek(fp,0,SEEK_SET);
-    char buffer[file_info.st_size];
-
-    //fread(&buffer,file_info.st_size, 1, fp);
-
-    //printf("%s\n",buffer);
-
-    //fclose(fp);
-
-    //FILE * f = fopen("files/test.jpeg", "wb" );
-
-    //fwrite(buffer , file_info.st_size ,1 , f);
-
-    fclose(f);
-    */
 
     client.launch(&client);
 
