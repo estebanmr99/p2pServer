@@ -11,7 +11,7 @@
 #include <sys/types.h>
 #include <sys/wait.h>
 
-#define PORT 8000
+#define PORT 8001
 #define INDEXFILEPATH "./files/index.txt" // Ruta donde se encuentran los archivos disponibles del servidor
 #define NOTFOUNDPAGEPATH "./files/404.html" // Archivo de 404 cuando la solicitud falla
 

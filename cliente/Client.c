@@ -13,7 +13,10 @@ struct sockaddr_in server_address;
 pthread_mutex_t mutex_aux = PTHREAD_MUTEX_INITIALIZER;
 pthread_cond_t cv = PTHREAD_COND_INITIALIZER;
 
+pthread_mutex_t mutex_file = PTHREAD_MUTEX_INITIALIZER;
+
 pthread_t inputThread;
+FILE *putos;
 
 //---------------------------------------------------------------------------------------------------------------------------------------
 // Funcion para concatenar dos punteros de char
@@ -281,7 +284,6 @@ void *send_request_to_peers(void *args){
 
     Peer peer = *((Peer*)args);
 
-    
     //request 77789 2a888118171d99cc037ea060545076c4
     int sock_fd;
 
@@ -327,9 +329,16 @@ void *send_request_to_peers(void *args){
     //P(333);
     //pthread_mutex_lock(&mutex_aux);
     printf("CLIENTE: INDEX: %ld PEER: %d\n",peer.chunk,peer.index);
-    FILE *fp = fopen(parse_port((long)peer.chunk), "wb");
+    char *peerChunk = parse_port((long)peer.chunk);
+    FILE *fp;
+    if (strcmp(peerChunk, "") == 0){
+        fp = fopen("0", "wb");
+    } else{
+        fp = fopen(peerChunk, "wb");
+    }
+    
     printf("CLIENTE %ld : GUARDA EL ARCHIVO\n",peer.chunk);
-    //P(335);
+
     fwrite(buffer , sizeof(buffer) ,1 , fp);
     printf("CLIENTE %ld : ESCRIBE EL BUFFER EN EL ARCHIVO\n",peer.chunk);
     //P(337);
@@ -526,15 +535,16 @@ void find_peers(char* size,char* hash){
         pthread_create(&peers_threads[i],NULL,send_request_to_peers, &peers_requests[i]);//se llama el peer que se eligio
         //pthread_join(peers_threads[i],NULL);//se llama el peer que se eligio
     }
-    //for(int i=0; i<total_chunks;i++){
+    for(int i=0; i<total_chunks;i++){
 
-    //    pthread_join(peers_threads[i],NULL);//se llama el peer que se eligio
-    //}
+       pthread_join(peers_threads[i],NULL);//se llama el peer que se eligio
+    }
 
 }
 
 //---------------------------------------------------------------------------------------------------------------------------------------
 // Funcion que parsea el input del usuario
+// NOTA: find peers deberia ser hilo
 void parse_command(char *user_line){
 
     char *ptr = strtok(user_line," ");
@@ -626,24 +636,33 @@ void *handle_request(void *args){
     recv(peer_fd, &index, sizeof(index), 0);
     recv(peer_fd, &chunk, sizeof(chunk), 0);
 
+    // char buffer2[30000];
+    // read(peer_fd, buffer2, 30000);
+
+    // char *file_name = "test.jpeg";
+    // char *hash = "2a888118171d99cc037ea060545076c4";
+    // long int size = 77789;
+    // long int chunk = 0;
+    // int index = 0;
+
     printf("CHUNK: %ld : PEER: %d\n",chunk,index);
 
-    char *path = concat(FILESPATH,file_name);
+    char *path = concat(FILESPATH, file_name);
 
-    FILE *fp = fopen(path,"rb");
+    putos = fopen(path,"rb");
     printf("PEER : %ld ABRE EL ARCHIVO\n",chunk);
 
     char buffer[CHUNK_SIZE];
     int i = CHUNK_SIZE * chunk;
 
-    fseek(fp,i,SEEK_SET);//el stream apunte al inicio de los bytes del chunk
+    fseek(putos,i,SEEK_SET);//el stream apunte al inicio de los bytes del chunk
     printf("PEER : %ld INDEXA EL ARCHIVO\n",chunk);
 
     //printf("lee desde este punto\n");
-    fread(buffer,sizeof(buffer),1,fp);
+    fread(buffer,sizeof(buffer),1,putos);
     printf("PEER : %ld LLENA EL BUFFER\n",chunk);
 
-    fclose(fp);
+    fclose(putos);
     printf("PEER : %ld CIERRA EL ARCHIVO\n",chunk);
 
 
@@ -692,6 +711,7 @@ void launch(Client *client)
         *socket = process_fd;
         pthread_create(&t,NULL,handle_request,socket); //se ejecuta el request del hilo al servidor
         //pthread_join(t,NULL);
+        printf(">");
     }
 
 }
