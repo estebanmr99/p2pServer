@@ -18,6 +18,7 @@
 #define IP "127.0.0.1"
 #define SERVER_IP "192.168.0.22"
 #define SERVER_PORT 8001
+#define FILEPATH "REQUEST_LIST.txt"
 
 typedef struct Info{
     char* hash;

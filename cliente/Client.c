@@ -302,7 +302,7 @@ void request_file(char *file_info){
 
 void prepare_request(char *response,char *file_name){
     
-    FILE *fp = fopen("REQUEST_LIST.txt", "w"); // Abre archivo
+    FILE *fp = fopen(FILEPATH, "w"); // Abre archivo
     //printf("%s\n",file_name);
     fputs(file_name,fp);  
     free(file_name);
@@ -367,7 +367,86 @@ int get_file(char *file_name){
 
 }
 
+char* copyString(char s[])
+{
+    char* s2;
+    s2 = (char*)malloc(strlen(s));
+ 
+    strcpy(s2, s);
+    return (char*)s2;
+}
+
+
+void find_peers(char* size,char* hash){
+
+    int peers_count = 0;
+    char *file_name;
+
+    if(access(FILEPATH, 0 ) == 0){ // Si el achivo existe en la ruta de archivos
+        FILE *fp = fopen(FILEPATH, "r");
+        int lineLength = 360;
+        char line[lineLength];
+
+        
+
+        char *peers = (char *)calloc(1, sizeof(char));
+
+        int flag = 1;
+
+        while(fgets(line, sizeof(line), fp)) {
+            char *copyLine = copyString(line);
+            if(flag){
+                file_name = copyString(copyLine);
+                peers = concat(peers,file_name);
+                //peers = concat(peers,"\n");//guardo el nombre del archivo
+                peers = concat(peers,hash); //se guarda el hash
+                peers = concat(peers,"\n"); //separador \n
+                peers = concat(peers,size); //se guarda el tamanio
+                peers = concat(peers,"\n"); //separador \n        
+                flag = 0;
+               
+            }
+
+            char *token = strtok(line," ");//hash
+
+            char *aux_hash = copyString(token);
+
+            if(strcmp(hash,aux_hash)==0){
+                token = strtok(NULL," ");//tamanio
+                if(strcmp(size,token)==0){
+
+                    peers_count++;
+
+                    token = strtok(NULL," ");//se ignora el autor
+                    token = strtok(NULL," ");//IP
+                    peers = concat(peers,token);
+                    peers = concat(peers," ");//separador espacio
+                    token = strtok(NULL," ");//PORT
+                    peers = concat(peers,token);//incluye separador
+                }
+                
+            }
+
+            free(aux_hash);
+            
+
+            free(copyLine);
+        }
+
+        fclose(fp);
+        free(file_name);
+        free(size);
+        free(hash);
+
+        
+        printf("Buffer: \n%s\n Total de peers: %d\n",peers,peers_count);
+    }
+
+}
+
 void parse_command(char *user_line){
+
+    //printf("%s\n",user_line);
 
     char *command;
 
@@ -385,8 +464,6 @@ void parse_command(char *user_line){
         char *file_name;
 
         file_name = (char *)malloc(strlen(ptr)*sizeof(char));
-
-
 
         strcpy(file_name,ptr);
 
@@ -412,9 +489,17 @@ void parse_command(char *user_line){
 
         printf("command: %s\nsize: %s\nhash: %s\n",command,size,hash);
 
+        find_peers(size,hash);
+
         free(user_line);
 
     }
+    else if(strcmp(command,"clear")==0)
+    {
+        system("clear");
+
+    }
+
     else{
         printf("command not found!\n");
         free(user_line);
